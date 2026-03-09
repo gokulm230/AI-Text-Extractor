@@ -53,34 +53,50 @@ def generate_questions():
     except Exception as e:
         return jsonify({"error": f"Failed to process PDF: {str(e)}"}), 500
 
-    # 2. Prepare Prompt (Strict JSON instructions)
-    prompt = f"""
-Return ONLY a valid JSON object. No preamble, no markdown, no extra braces.
-Generate 10 MCQ questions from the provided text.
+    # 2. Prepare Prompt (Optimized with variety)
+    prompt = f"""You are an expert educator creating diverse, high-quality multiple choice questions.
 
-Schema:
+TASK: Generate exactly 10 unique MCQ questions from the provided text.
+
+REQUIREMENTS:
+- Vary difficulty levels: mix easy, medium, and hard questions
+- Questions must test comprehension, analysis, and recall
+- All information in questions and answers must come from the TEXT
+- Options should be plausible but clearly distinguishable
+- No trick questions - one answer should be definitively correct
+- Vary question types (definitions, concepts, comparisons, applications)
+
+OUTPUT FORMAT (strict JSON, no markdown, no extra text):
 {{
  "questions":[
   {{
    "id":1,
-   "question":"...",
-   "options":{{"A":"...","B":"...","C":"...","D":"..."}},
+   "question":"Clear, specific question text here?",
+   "options":{{"A":"Option A","B":"Option B","C":"Option C","D":"Option D"}},
    "answer":"A"
+  }},
+  {{
+   "id":2,
+   "question":"Different question from the text?",
+   "options":{{"A":"Option A","B":"Option B","C":"Option C","D":"Option D"}},
+   "answer":"B"
   }}
  ]
 }}
 
-TEXT:
+TEXT TO ANALYZE:
 {text}
-"""
+
+Generate the JSON response now:"""
 
     # 3. Call AI Model
     try:
         response = client.chat.completions.create(
             model="meta-llama/Meta-Llama-3-8B-Instruct",
             messages=[{"role": "user", "content": prompt}],
-            max_tokens=1500, # Increased to prevent truncation
-            temperature=0.3  # Lower temperature for more stable JSON
+            max_tokens=1500,
+            temperature=0.8,  # Increased for more variety and randomness
+            top_p=0.9  # Added for better sampling diversity
         )
 
         result = response.choices[0].message.content.strip()
@@ -137,8 +153,10 @@ def evaluate():
 
         results.append({
             "id": qid,
-            "correct": is_correct,
-            "correct_answer": correct_answer
+            "status": "correct" if is_correct else "wrong",
+            "your_answer": selected,
+            "correct_answer": correct_answer,
+            "is_correct": is_correct
         })
 
     return jsonify({

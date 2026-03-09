@@ -4,11 +4,13 @@ import "../App.css";
 function Upload({ setQuestions, setPage }) {
   const [file, setFile] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
   const inputRef = useRef(null);
 
   const handleUpload = async () => {
     if (!file) return;
     setLoading(true);
+    setError(null);
 
     try {
       const formData = new FormData();
@@ -20,10 +22,19 @@ function Upload({ setQuestions, setPage }) {
       });
 
       const data = await response.json();
+
+      // Check if response contains an error
+      if (data.error) {
+        setError(data.error);
+        setLoading(false);
+        return;
+      }
+
       setQuestions(data.questions);
       setPage("mcq");
     } catch (err) {
       console.error("Upload failed:", err);
+      setError("Failed to connect to server. Please make sure the backend is running.");
     } finally {
       setLoading(false);
     }
@@ -74,6 +85,31 @@ function Upload({ setQuestions, setPage }) {
         <div className="loading-overlay">
           <div className="spinner" />
           <p>Generating questions…</p>
+        </div>
+      ) : error ? (
+        <div className="error-container">
+          <div className="error-message">
+            <span className="error-icon">⚠️</span>
+            <div className="error-content">
+              <h3>Error Generating Questions</h3>
+              <p>{error}</p>
+              {error.includes("invalid JSON") && (
+                <p className="error-hint">
+                  💡 The AI model returned invalid data. Try uploading a different PDF or try again.
+                </p>
+              )}
+            </div>
+          </div>
+          <button
+            className="error-retry-btn"
+            onClick={() => {
+              setError(null);
+              setFile(null);
+              inputRef.current?.click();
+            }}
+          >
+            Try Another File
+          </button>
         </div>
       ) : (
         <button
